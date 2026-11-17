@@ -15,7 +15,7 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
-TOKEN = os.getenv("GENIUS_TOKEN")
+TOKEN = os.getenv("GENIUS_ACCESS_TOKEN")
 genius = lyricsgenius.Genius(TOKEN)
 genius.verbose = False 
 
