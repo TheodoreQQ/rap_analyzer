@@ -1,5 +1,6 @@
 import re
 from rhymes import RhymeAnalyzer
+from flex import flex_dictionary
 
 # Inicjalizacja analizatora rymów na poziomie pliku (ładuje się raz)
 rhyme_analyzer = RhymeAnalyzer()
@@ -62,6 +63,26 @@ def count_profanities(words: list) -> tuple:
                 
     return count, list(found_profanities)
 
+def count_flex(clean_text: str) -> tuple:
+    count = 0
+    found_flexes = set()
+    
+    text_to_check = clean_text.lower()
+    
+    sorted_flexes = sorted(flex_dictionary, key=len, reverse=True)
+    
+    for flex in sorted_flexes:
+        pattern = r'\b' + re.escape(flex) + r'\b'
+        
+        matches = re.findall(pattern, text_to_check)
+        if matches:
+            count += len(matches)
+            found_flexes.add(flex)
+            
+            text_to_check = re.sub(pattern, ' ', text_to_check)
+    
+    return count, list(found_flexes)
+
 def analyze_text(raw_lyrics: str) -> dict:
     clean_text = clean_lyrics(raw_lyrics)
     words_only_text = re.sub(r'[^\w\s]', '', clean_text.lower())
@@ -73,6 +94,8 @@ def analyze_text(raw_lyrics: str) -> dict:
         return {
             "przekleństwa": 0, 
             "przekleństwa_lista": [], 
+            "flex": 0,
+            "flex_lista": [],
             "rymy": {"dokładne": 0, "asonanse": 0, "konsonanse": 0, "wielokrotne": 0}, 
             "unikalne_słowa": 0, 
             "łącznie_słów": 0,
@@ -80,6 +103,9 @@ def analyze_text(raw_lyrics: str) -> dict:
         }
     
     profanities_count, profanities_list = count_profanities(words)
+    
+    flex_count, flex_list = count_flex(clean_text)
+    
     unique_words_count = len(set(words))  
     
     rhymes_data = rhyme_analyzer.analyze(lines)
@@ -87,6 +113,8 @@ def analyze_text(raw_lyrics: str) -> dict:
     return {
         "przekleństwa": profanities_count,
         "przekleństwa_lista": profanities_list, 
+        "flex": flex_count,
+        "flex_lista": flex_list,
         "rymy": rhymes_data["stats"],
         "unikalne_słowa": unique_words_count,
         "łącznie_słów": len(words),
