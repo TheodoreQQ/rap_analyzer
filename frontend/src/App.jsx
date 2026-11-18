@@ -92,8 +92,23 @@ function App() {
         {/* SUKCES: Sekcja wyników */}
         {analysis && analysis.stats && !loading && (
           <div className="mt-8 bg-gray-800 p-6 rounded-lg shadow-xl">
-            <h2 className="text-2xl font-bold mb-4 border-b border-gray-700 pb-2">Wyniki analizy tekstu</h2>
             
+            {/* NAGŁÓWEK Z ODZNAKĄ FLEXU */}
+            <div className="flex items-center justify-between border-b border-gray-700 pb-2 mb-4">
+              <h2 className="text-2xl font-bold">Wyniki analizy tekstu</h2>
+              
+              {/* Złota odznaka Flexu - wyświetla się z boku */}
+              <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 px-4 py-1.5 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.1)]">
+                <span className="text-yellow-400 font-bold text-sm uppercase tracking-wider">
+                  Punkty Flexu
+                </span>
+                <span className="bg-yellow-500 text-gray-900 font-black px-2 py-0.5 rounded-full text-sm">
+                  {analysis.stats.flex}
+                </span>
+              </div>
+            </div>
+            
+            {/* 1. SEKCJA: Ogólne statystyki (3 kolumny) */}
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="bg-gray-700 p-4 rounded text-center shadow-inner">
                 <p className="text-sm text-gray-400">Przekleństwa</p>
@@ -109,6 +124,7 @@ function App() {
               </div>
             </div>
 
+            {/* 2. SEKCJA: Analiza Rymów (4 kolumny) */}
             <h3 className="text-xl font-bold mb-3 text-gray-200">Fonetyka i Rymy</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <div className="bg-gray-700 p-4 rounded text-center border-b-4 border-green-500">
@@ -129,6 +145,7 @@ function App() {
               </div>
             </div>
 
+            {/* 3. SEKCJA: Surowy tekst piosenki */}
             <h3 className="text-xl font-bold mb-3 text-gray-200 mt-8">Analiza linijka po linijce</h3>
             
             <div className="text-base text-gray-200 max-h-[600px] overflow-y-auto p-6 bg-gray-900 rounded-lg border border-gray-700 leading-relaxed shadow-inner">
@@ -143,29 +160,44 @@ function App() {
                   );
                 }
 
-                // kolorowanie przekleństw
                 const profanities = analysis.stats.przekleństwa_lista || [];
-                const renderWithProfanities = (text) => {
-                  if (!profanities.length || !text) return text;
+                const flexes = (analysis.stats.flex_lista || []).flatMap(f => f.split(' '));
+
+                // POTĘŻNA FUNKCJA DO NAKŁADANIA EFEKTÓW NA TEKST
+                const applyHighlights = (text) => {
+                  if (!text) return text;
                   
-                  try {
-                    // bezpieczny regex z obsługą polskich znaków (wyszukuje dokładnych słów z pominięciem znaków interpunkcyjnych)
-                    const escapedProfs = profanities.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-                    const regex = new RegExp(`(?<![\\p{L}])(${escapedProfs})(?![\\p{L}])`, 'giu');
+                  let elements = [text];
+
+                  const styleWords = (wordsList, className) => {
+                    if (!wordsList.length) return;
                     
-                    const parts = text.split(regex);
-                    return parts.map((part, i) => {
-                      if (profanities.includes(part.toLowerCase())) {
-                        return <span key={i} className="text-red-400 underline decoration-red-500 decoration-2">{part}</span>;
-                      }
-                      return part;
+                    const sortedWords = [...wordsList].sort((a, b) => b.length - a.length);
+                    const escapedWords = sortedWords.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+                    const regex = new RegExp(`(?<![\\p{L}])(${escapedWords})(?![\\p{L}])`, 'giu');
+
+                    elements = elements.flatMap(el => {
+                      if (typeof el !== 'string') return el;
+                      
+                      const parts = el.split(regex);
+                      return parts.map((part, i) => {
+                        if (sortedWords.includes(part.toLowerCase())) {
+                          return <span key={`${part}-${i}`} className={className}>{part}</span>;
+                        }
+                        return part;
+                      });
                     });
+                  };
+
+                  try {
+                    styleWords(flexes, "text-yellow-400 font-bold tracking-wide drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]");
+                    styleWords(profanities, "text-red-400 underline decoration-red-500 decoration-2");
+                    return elements;
                   } catch (e) {
-                    return text; // w razie błędu zwraca czysty tekst
+                    return text;
                   }
                 };
 
-                // Kolory dla rymów
                 const colorMap = {
                   'dokładne': 'bg-green-500/20 text-green-300 font-bold px-1 rounded border-b-2 border-green-500',
                   'asonanse': 'bg-yellow-500/20 text-yellow-300 font-bold px-1 rounded border-b-2 border-yellow-500',
@@ -173,30 +205,26 @@ function App() {
                   'wielokrotne': 'bg-pink-500/20 text-pink-300 font-bold px-1 rounded border-b-2 border-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.4)]'
                 };
 
-                // renderowanie linii bazowej (bez rymów)
                 if (line.type === 'brak' || !line.highlight) {
-                  return <div key={idx} className="text-gray-300">{renderWithProfanities(line.text)}</div>;
+                  return <div key={idx} className="text-gray-300">{applyHighlights(line.text)}</div>;
                 }
 
                 const lastIndex = line.text.lastIndexOf(line.highlight);
                 
-                // zabezpieczenie przed błędem z ucięciem liter
                 if (lastIndex === -1) {
-                   return <div key={idx} className="text-gray-300">{renderWithProfanities(line.text)}</div>;
+                   return <div key={idx} className="text-gray-300">{applyHighlights(line.text)}</div>;
                 }
 
-                // dzielenie linijki dla rymów i aplikowanie przekleństw
                 const before = line.text.slice(0, lastIndex);
                 const after = line.text.slice(lastIndex + line.highlight.length);
 
                 return (
                   <div key={idx} className="text-gray-300">
-                    <span>{renderWithProfanities(before)}</span>
+                    <span>{applyHighlights(before)}</span>
                     <span className={colorMap[line.type] || ''}>
-                      {/* podkreślenie przekleństwa nawet, jeżeli będzie już zaznaczone jako rym */}
-                      {renderWithProfanities(line.highlight)} 
+                      {applyHighlights(line.highlight)}
                     </span>
-                    <span>{renderWithProfanities(after)}</span>
+                    <span>{applyHighlights(after)}</span>
                   </div>
                 );
               })}
