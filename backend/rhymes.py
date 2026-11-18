@@ -10,14 +10,33 @@ class RhymeAnalyzer:
     def __init__(self):
         # konfiguracja separatora, żeby IPA było ciągłym stringiem bez spacji między głoskami
         self.separator = Separator(phone='', word='', syllable='')
+        
+        self.phonetic_exceptions = {
+            "superman": "supermen",
+            "spiderman": "spajdermen",
+            "batman": "betmen",
+            "iphone": "ajfon",
+            "fake": "fejk",
+            "vibe": "wajb",
+            "cash": "kesz",
+            "uber": "uber", 
+            "game": "gejm",
+            "fame": "fejm",
+            "richard mille": "riszard mil"
+        }
 
     def _transliterate(self, text: str) -> str:
         """Zamienia polski tekst na alfabet fonetyczny IPA."""
         if not text:
             return ""
+        
+        text_lower = text.lower()
+        for eng, pol in self.phonetic_exceptions.items():
+            text_lower = re.sub(r'\b' + eng + r'\b', pol, text_lower)
+        
         try:
             ipa = phonemize(
-                text,
+                text_lower,
                 language='pl',
                 backend='espeak',
                 separator=self.separator,
